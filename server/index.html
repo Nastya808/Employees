@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Employee Table</title>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <style>
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid black; padding: 8px; text-align: left; }
+        th { cursor: pointer; }
+    </style>
+</head>
+<body>
+<h1>Employee Table</h1>
+<div id="filters">
+    <label>Country:</label>
+    <div id="countryFilters"></div>
+    <label>City:</label>
+    <div id="cityFilters"></div>
+</div>
+<table>
+    <thead>
+    <tr>
+        <th data-column="Name">Name</th>
+        <th data-column="Surname">Surname</th>
+        <th data-column="Country">Country</th>
+        <th data-column="City">City</th>
+        <th data-column="Salary">Salary</th>
+    </tr>
+    </thead>
+    <tbody id="tableBody"></tbody>
+</table>
+
+<script>
+    let sortColumn = 'id', sortOrder = 'ASC', filters = { country: [], city: [] };
+
+    function fetchData() {
+        $.ajax({
+            url: 'http://localhost:8080/employee_table/filter.php', // Полный путь к вашему серверу
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({ sortColumn, sortOrder, ...filters }),
+            xhrFields: {
+                withCredentials: true // Передача cookies, если требуется
+            },
+            success: function (data) {
+                const rows = JSON.parse(data);
+                $('#tableBody').html(rows.map(row => `
+            <tr>
+                <td>${row.Name}</td>
+                <td>${row.Surname}</td>
+                <td>${row.Country}</td>
+                <td>${row.City}</td>
+                <td>${row.Salary}</td>
+            </tr>
+        `).join(''));
+            }
+        });
+
+
+    }
+
+    function fetchFilters() {
+        $.ajax({
+            url: 'http://localhost:8080/employee_table/filter.php',
+            type: 'POST',
+            contentType: 'application/json',
+            data: JSON.stringify({}),
+            success: function (data) {
+                const rows = JSON.parse(data);
+                const countries = [...new Set(rows.map(row => row.Country))];
+                const cities = [...new Set(rows.map(row => row.City))];
+                $('#countryFilters').html(countries.map(country => `
+                        <label>
+                            <input type="checkbox" value="${country}" onchange="toggleFilter('country', this)"> ${country}
+                        </label>
+                    `).join(''));
+                $('#cityFilters').html(cities.map(city => `
+                        <label>
+                            <input type="checkbox" value="${city}" onchange="toggleFilter('city', this)"> ${city}
+                        </label>
+                    `).join(''));
+            }
+        });
+    }
+
+    function toggleFilter(type, checkbox) {
+        const value = checkbox.value;
+        if (checkbox.checked) {
+            filters[type].push(value);
+        } else {
+            filters[type] = filters[type].filter(v => v !== value);
+        }
+        fetchData();
+    }
+
+    $(document).ready(function () {
+        $('th').click(function () {
+            const column = $(this).data('column');
+            sortOrder = (sortColumn === column && sortOrder === 'ASC') ? 'DESC' : 'ASC';
+            sortColumn = column;
+            fetchData();
+        });
+
+        fetchFilters();
+        fetchData();
+    });
+</script>
+</body>
+</html>
